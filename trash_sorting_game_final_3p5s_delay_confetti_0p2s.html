@@ -1,0 +1,365 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trash Sorting Game</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      height: 100%;
+      overflow: hidden;
+      background: #cceeff;
+    }
+    #startScreen, #gameScreen {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    #startScreen {
+      background: pink;
+      z-index: 100;
+    }
+    #startScreen h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    #startScreen p {
+      font-size: 20px;
+      max-width: 600px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    #startButton {
+      font-size: 24px;
+      padding: 10px 20px;
+      cursor: pointer;
+      background: green;
+      color: white;
+      border: none;
+      border-radius: 8px;
+    }
+    #messageBar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      padding: 10px 0;
+      display: none;
+      z-index: 10;
+    }
+    #scoreBoard {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      font-size: 20px;
+      padding: 10px;
+      z-index: 10;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      border: 2px solid #333;
+      background: #fff;
+    }
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+<audio id="correctSound" src="https://cdn.jsdelivr.net/gh/terkelg/awesome-creative-coding-assets/audio/success.mp3"></audio>
+<audio id="wrongSound" src="https://cdn.jsdelivr.net/gh/terkelg/awesome-creative-coding-assets/audio/fail.mp3"></audio>
+
+  <div id="startScreen">
+    <h1>Trash Sorting Game</h1>
+    <p>Welcome to the Trash Sorting Game! Sort the falling items into the correct bins:</p>
+    <ul style="text-align: left; font-size: 18px;">
+      <li>Press <strong>1</strong> for <span style="color: blue;">Recycle (Blue Bin)</span></li>
+      <li>Press <strong>2</strong> for <span style="color: brown;">Compost (Brown Bin)</span></li>
+      <li>Press <strong>3</strong> for <span style="color: green;">Glass (Green Bin)</span></li>
+      <li>Press <strong>4</strong> for <span style="color: gray;">Metal (Gray Bin)</span></li>
+      <li>Press <strong>5</strong> for <span style="color: red;">E-Waste (Red Bin)</span></li>
+      <li>Press <strong>6</strong> for <span style="color: black;">Trash (Black Bin)</span></li>
+    </ul>
+    <p>Each level gets faster and harder. Good luck!</p>
+    <button id="startButton">Start Game</button>
+  </div>
+
+  <div id="gameScreen" style="display: none;">
+    <div id="messageBar"></div>
+    <div id="scoreBoard">Score: 0 | Level: 1</div>
+    <canvas id="gameCanvas" width="900" height="800"></canvas>
+  </div>
+
+  <script>
+    const startButton = document.getElementById('startButton');
+    const startScreen = document.getElementById('startScreen');
+    const gameScreen = document.getElementById('gameScreen');
+
+    
+    startButton.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      gameScreen.style.display = 'block';
+      setTimeout(() => {
+        startGame();
+      }, 2000); // 2 second start delay
+    });
+
+
+    function startGame() {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const messageBar = document.getElementById('messageBar');
+      const scoreBoard = document.getElementById('scoreBoard');
+
+      const categories = [
+        { type: 'recycle', key: '1', canImage: 'https://i.imgur.com/X15VfS0.png' },
+        { type: 'compost', key: '2', canImage: 'https://i.imgur.com/lbbIqgV.png' },
+        { type: 'glass', key: '3', canImage: 'https://i.imgur.com/4wNLJeY.png' },
+        { type: 'metal', key: '4', canImage: 'https://i.imgur.com/G5z3JzQ.png' },
+        { type: 'ewaste', key: '5', canImage: 'https://i.imgur.com/v4B5HHm.png' },
+        { type: 'trash', key: '6', canImage: 'https://i.imgur.com/Ct6i9zy.png' }
+      ];
+
+      const itemTypes = [
+        { name: 'Plastic Bottle', type: 'recycle', image: 'realistic-vector-icon-plastic-bottle-water-isolated-white-background-beverage-drink-mockup_134830-1356.avif' },
+        { name: 'Newspaper', type: 'recycle', image: 'pngtree-newspaper-isolated-on-transparent-background-for-press-day-french-png-image_12487304.png' },
+        { name: 'Cardboard', type: 'recycle', image: 'cardboard-scrap-transparent-background_955012-46480.avif' },
+        { name: 'Soda Can', type: 'recycle', image: 'images (3).jpeg' },
+        { name: 'Banana Peel', type: 'compost', image: 'pngtree-single-banana-peel-png-image_9238463.png' },
+        { name: 'Apple Core', type: 'compost', image: 'pngtree-red-apple-core-on-a-white-background-delicious-crunchy-natural-photo-image_8698300.jpg' },
+        { name: 'Coffee Grounds', type: 'compost', image: 'heap-ground-coffee-beans-on-600nw-2292891629.webp' },
+        { name: 'Leaves', type: 'compost', image: 'pngtree-flying-natural-green-leaves-on-transparent-background-png-image_12313803.png' },
+        { name: 'Glass Bottle', type: 'glass', image: '705b9de0c3e135bcf03acd33634ebdab.jpg' },
+        { name: 'Glass Jar', type: 'glass', image: 'pngtree-empty-glass-jar-isolated-on-white-transparent-background-png-image_13684543.png' },
+        { name: 'Tin Can', type: 'metal', image: 'empty-tin-can-isolated-transparent-background-png-psd_888962-454.avif' },
+        { name: 'Aluminum Foil', type: 'metal', image: 'images (2).jpeg' },
+        { name: 'Phone', type: 'ewaste', image: 'images (1).jpeg' },
+        { name: 'Battery', type: 'ewaste', image: 'pngtree-battery-transparent-background-png-image_15713223.png' },
+        { name: 'USB Cable', type: 'ewaste', image: '83380343-doodle-usb-cable-at-transparent-effect-background.jpg' },
+        { name: 'Styrofoam Cup', type: 'trash', image: 'styrofoam-cup-11563596419wynyesidzm.png' },
+        { name: 'Diaper', type: 'trash', image: 'images (4).jpeg' },
+        { name: 'Chip Bag', type: 'trash', image: 'pngtree-potato-chips-packet-png-image_15970111.png' }
+      ];
+
+      const correctSound = new Audio('https://www.soundjay.com/button/sounds/button-4.mp3');
+      const wrongSound = new Audio('https://www.soundjay.com/button/sounds/button-10.mp3');
+
+      let items = [];
+      let lastSpawn = 0;
+      let score = 0;
+      let level = 1;
+      const levelUpThreshold = 100;
+      const maxLevel = 10;
+
+      const binWidth = canvas.width / categories.length;
+      const canImgs = {};
+      const trashImgs = {};
+
+      categories.forEach(c => {
+        const img = new Image();
+        img.src = c.canImage;
+        canImgs[c.type] = img;
+      });
+
+      itemTypes.forEach(i => {
+        const img = new Image();
+        img.src = i.image;
+        trashImgs[i.name] = img;
+      });
+
+      function spawnItem() {
+        const randomItem = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+        items.push({
+          ...randomItem,
+          x: Math.random() * (canvas.width - 100),
+          y: -50,
+          speed: 3 + level + Math.random() * 2
+        });
+      }
+
+      function showMessage(text, color) {
+        messageBar.innerText = text;
+        messageBar.style.backgroundColor = color;
+        messageBar.style.color = '#fff';
+        messageBar.style.display = 'block';
+        setTimeout(() => {
+          messageBar.style.display = 'none';
+        }, 1000);
+      }
+
+      function updateScore(amount) {
+        if (score <= -100) {
+          document.body.innerHTML = `  <div style="background:red;color:white;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-size:48px;">    Game Over! You failed.<br/>    <button onclick='location.reload()' style='margin-top:20px;padding:10px 20px;font-size:24px;'>Retry</button>  </div>`;
+          return;
+        }
+        score += amount;
+        if (score >= level * 50 && level < maxLevel) {
+          level++;
+          showMessage("Level " + level + "!", "blue");
+          items = []; // clear items to give player a rest
+        }
+        scoreBoard.innerText = 'Score: ' + score + ' | Level: ' + level;
+      }
+
+      function gameLoop(timestamp) {
+        const spawnInterval = level === 1 ? 3500 : Math.max(500, 2000 - (level - 1) * 100);
+        if (timestamp - lastSpawn > spawnInterval) {
+          spawnItem();
+          lastSpawn = timestamp;
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        
+    categories.forEach((cat, i) => {
+      const x = i * binWidth + binWidth / 2 - 32;
+      const colors = {
+        recycle: 'blue',
+        compost: 'brown',
+        glass: 'green',
+        metal: 'gray',
+        ewaste: 'red',
+        trash: 'black'
+      };
+      // Draw main bin body with rounded corners
+      ctx.fillStyle = colors[cat.type];
+      ctx.beginPath();
+      ctx.moveTo(x, canvas.height - 100 + 10);
+      ctx.lineTo(x, canvas.height - 10);
+      ctx.arcTo(x, canvas.height, x + 10, canvas.height, 10);
+      ctx.arcTo(x + 64, canvas.height, x + 64, canvas.height - 10, 10);
+      ctx.lineTo(x + 64, canvas.height - 100 + 10);
+      ctx.arcTo(x + 64, canvas.height - 100, x + 54, canvas.height - 100, 10);
+      ctx.arcTo(x, canvas.height - 100, x, canvas.height - 90, 10);
+      ctx.closePath();
+      ctx.fill();
+
+      // Draw lid with shadow
+      ctx.fillStyle = 'darkgray';
+      ctx.shadowColor = "rgba(0,0,0,0.4)";
+      ctx.shadowBlur = 4;
+      ctx.fillRect(x - 2, canvas.height - 102, 68, 6);
+      ctx.shadowBlur = 0;
+
+      // Draw trash symbol
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.fillText('🗑️', x + 16, canvas.height - 50);
+    });
+    
+
+        
+        
+        items.forEach(item => {
+          if (item.playerSelectedBin) {
+            const binIndex = categories.findIndex(c => c.type === item.playerSelectedBin);
+            const targetX = binIndex * binWidth + binWidth / 2 - 24;
+            if (Math.abs(item.x - targetX) > 2) {
+              item.x += item.x < targetX ? 8 : -8;
+            }
+          }
+
+          item.y += item.speed;
+          const img = trashImgs[item.name];
+          ctx.drawImage(img, item.x, item.y, 72, 72);
+
+          if (item.y + 48 >= canvas.height) {
+            const binIndex = Math.floor(item.x / binWidth);
+            const binType = categories[binIndex]?.type;
+
+            if (!item.playerSelectedBin) {
+              showMessage('No input!', 'orange');
+              document.getElementById('wrongSound').play();
+              updateScore(-10);
+            } else if (item.playerSelectedBin === item.type) {
+              showMessage('Correct!', 'green');
+              document.getElementById('correctSound').play();
+              // Get bin position
+const binIndex = categories.findIndex(c => c.type === item.playerSelectedBin);
+const binX = binIndex * binWidth + binWidth / 2;
+const binY = canvas.height - 100;
+
+// Launch confetti from bin
+confetti({
+  ticks: 20,
+  particleCount: 60,
+  angle: 90,
+  spread: 70,
+  origin: {
+    x: binX / ctx.canvas.width,
+    y: binY / ctx.canvas.height
+  }
+});
+              
+              setTimeout(() => {
+                updateScore(10);
+                requestAnimationFrame(gameLoop);
+              }, 3000); // 3 second delay
+              return;
+            } else {
+              showMessage('Wrong!', 'red');
+              document.getElementById('wrongSound').play();
+              updateScore(-5);
+
+              // Show thumbs down emoji at bin
+              const binIndex = Math.floor(item.x / binWidth);
+              const binX = binIndex * binWidth + binWidth / 2 - 10;
+              const binY = canvas.height - 130;
+
+              ctx.fillStyle = 'red';
+              ctx.font = '30px Arial';
+              ctx.fillText('👎', binX, binY);
+
+              // Clear emoji after short time
+              setTimeout(() => {
+                ctx.clearRect(binX - 5, binY - 30, 40, 40);
+              }, 700);
+            }
+          }
+        });
+
+        items = items.filter(item => item.y + 48 < canvas.height);
+
+
+        
+      document.addEventListener('keydown', e => {
+        const cat = categories.find(c => c.key === e.key);
+        if (!cat) return;
+        if (items.length > 0) {
+          items[0].playerSelectedBin = cat.type;
+        }
+      });
+
+      requestAnimationFrame(gameLoop);
+      }
+
+      
+
+      
+      document.addEventListener('keydown', e => {
+        const cat = categories.find(c => c.key === e.key);
+        if (!cat) return;
+        if (items.length > 0) {
+          items[0].playerSelectedBin = cat.type;
+        }
+      });
+
+      requestAnimationFrame(gameLoop);
+    }
+  </script>
+</body>
+</html>
